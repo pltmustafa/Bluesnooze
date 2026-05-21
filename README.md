@@ -1,4 +1,4 @@
-# Bluesnooze (fork)
+# Bluesnooze
 
 [Download the latest release.][download-latest]
 
@@ -18,7 +18,7 @@ Bluesnooze can also manage the Wi-Fi connection in the same way (disabled by def
 
 ## Installation
 
-Minimum macOS version: 10.13 (use [older version](https://github.com/stefansundin/bluesnooze/releases/tag/v1.3) for 10.12)
+Minimum macOS version: 10.13
 
 1. Download `Bluesnooze.zip` from the [latest release][download-latest].
 1. In Finder, open `Bluesnooze.zip` in your `Downloads` directory.
@@ -56,4 +56,4 @@ defaults write com.oliverpeate.Bluesnooze hideIcon -bool true
 defaults delete com.oliverpeate.Bluesnooze
 ```
 
-[download-latest]: https://github.com/stefansundin/bluesnooze/releases/latest
+[download-latest]: https://github.com/pltmustafa/Bluesnooze/releases/latest
