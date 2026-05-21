@@ -36,5 +36,9 @@
 	<true/>
 	<key>NSSupportsSuddenTermination</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluesnooze needs Bluetooth access to connect to your target device on wake-up.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Bluesnooze needs Bluetooth access to connect to your target device on wake-up.</string>
 </dict>
 </plist>

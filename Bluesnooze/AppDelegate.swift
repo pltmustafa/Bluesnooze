@@ -28,7 +28,52 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private var prevBluetoothState: Int32 = IOBluetoothPreferenceGetControllerPowerState()
-    private var prevWifiState: Bool = CWWiFiClient.shared().interface()!.powerOn()
+    private var prevWifiState: Bool = CWWiFiClient.shared().interface()?.powerOn() ?? true
+    private var isPoweringDown = false
+
+    private let powerQueue = DispatchQueue(label: "com.bluesnooze.powerQueue", qos: .userInitiated)
+    private var stateTimer: DispatchSourceTimer?
+
+    private var connectOnWakeSeparator: NSMenuItem?
+    private var connectOnWakeToggleItem: NSMenuItem?
+    private var connectWifiOnWakeSeparator: NSMenuItem?
+    private var connectWifiOnWakeToggleItem: NSMenuItem?
+
+    var connectWifiOnWake: Bool {
+        get {
+            return UserDefaults.standard.bool(forKey: "connectWifiOnWake")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "connectWifiOnWake")
+        }
+    }
+
+    var targetWifiSsid: String {
+        get {
+            return UserDefaults.standard.string(forKey: "targetWifiSsid") ?? ""
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "targetWifiSsid")
+        }
+    }
+
+    var connectOnWake: Bool {
+        get {
+            return UserDefaults.standard.bool(forKey: "connectOnWake")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "connectOnWake")
+        }
+    }
+
+    var targetBluetoothMacAddress: String {
+        get {
+            return UserDefaults.standard.string(forKey: "targetBluetoothMacAddress") ?? ""
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "targetBluetoothMacAddress")
+        }
+    }
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         LaunchAtLogin.migrateIfNeeded() // Migrate to macOS 13 API (https://github.com/sindresorhus/LaunchAtLogin/releases/tag/v5.0.0)
@@ -36,6 +81,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             initStatusItem()
         }
         setupNotificationHandlers()
+
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
+        timer.schedule(deadline: .now(), repeating: 1.0)
+        timer.setEventHandler { [weak self] in
+            self?.updatePowerStates()
+        }
+        timer.resume()
+        self.stateTimer = timer
+
+        if let bluetoothMenu = disableBluetoothOnPowerDownMenuItem.menu {
+            let separator = NSMenuItem.separator()
+            bluetoothMenu.addItem(separator)
+            connectOnWakeSeparator = separator
+            
+            let toggleItem = NSMenuItem(title: "Connect on wake", action: nil, keyEquivalent: "")
+            let subMenu = NSMenu(title: "Connect on wake")
+            toggleItem.submenu = subMenu
+            bluetoothMenu.addItem(toggleItem)
+            connectOnWakeToggleItem = toggleItem
+        }
+
+        if let wifiMenu = disableWifiOnPowerDownMenuItem.menu {
+            let separator = NSMenuItem.separator()
+            wifiMenu.addItem(separator)
+            connectWifiOnWakeSeparator = separator
+            
+            let toggleItem = NSMenuItem(title: "Connect on wake", action: nil, keyEquivalent: "")
+            let subMenu = NSMenu(title: "Connect on wake")
+            toggleItem.submenu = subMenu
+            wifiMenu.addItem(toggleItem)
+            connectWifiOnWakeToggleItem = toggleItem
+        }
     }
 
     // Re-add the status bar icon when the app is launched a second time
@@ -103,12 +180,92 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         bluetoothActionOnScreenUnlockEnable.state = boolToMenuState(v: bluetoothActionOnScreenUnlock == "enable")
         bluetoothActionOnScreenUnlockNothing.state = boolToMenuState(v: bluetoothActionOnScreenUnlock == "nothing")
 
+        // Update custom bluetooth items
+        if let toggleItem = connectOnWakeToggleItem, let subMenu = toggleItem.submenu {
+            subMenu.removeAllItems()
+            
+            // 1. "Disabled" item
+            let disabledItem = NSMenuItem(title: "Disabled", action: #selector(disableConnectOnWake(_:)), keyEquivalent: "")
+            disabledItem.state = boolToMenuState(v: !connectOnWake)
+            subMenu.addItem(disabledItem)
+            
+            subMenu.addItem(NSMenuItem.separator())
+            
+            // 2. Paired devices
+            var foundActive = false
+            if let devices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] {
+                for device in devices {
+                    let name = device.name ?? "Unknown Device"
+                    let address = device.addressString ?? ""
+                    guard !address.isEmpty else { continue }
+                    
+                    let item = NSMenuItem(title: name, action: #selector(pairedDeviceSelected(_:)), keyEquivalent: "")
+                    item.representedObject = address
+                    
+                    let isSelected = connectOnWake && (address == targetBluetoothMacAddress)
+                    item.state = boolToMenuState(v: isSelected)
+                    if isSelected {
+                        foundActive = true
+                    }
+                    subMenu.addItem(item)
+                }
+            }
+            
+            subMenu.addItem(NSMenuItem.separator())
+            
+            // 3. Custom MAC Address item
+            let customTitle = targetBluetoothMacAddress.isEmpty ? "Custom MAC Address..." : "Custom MAC Address... (\(targetBluetoothMacAddress))"
+            let customItem = NSMenuItem(title: customTitle, action: #selector(setMacAddressClicked(_:)), keyEquivalent: "")
+            customItem.state = boolToMenuState(v: connectOnWake && !foundActive && !targetBluetoothMacAddress.isEmpty)
+            subMenu.addItem(customItem)
+        }
+
         // Wi-Fi
         disableWifiOnPowerDownMenuItem.state = boolToMenuState(v: disableWifiOnPowerDown)
         wifiActionOnScreenUnlockRestore.isEnabled = disableWifiOnPowerDown
         wifiActionOnScreenUnlockRestore.state = boolToMenuState(v: wifiActionOnScreenUnlock == "restore" ? (disableWifiOnPowerDown ? true : nil) : false)
         wifiActionOnScreenUnlockEnable.state = boolToMenuState(v: wifiActionOnScreenUnlock == "enable")
         wifiActionOnScreenUnlockNothing.state = boolToMenuState(v: wifiActionOnScreenUnlock == "nothing")
+
+        // Update custom wifi items
+        if let toggleItem = connectWifiOnWakeToggleItem, let subMenu = toggleItem.submenu {
+            subMenu.removeAllItems()
+            
+            // 1. "Disabled" item
+            let disabledItem = NSMenuItem(title: "Disabled", action: #selector(disableConnectWifiOnWake(_:)), keyEquivalent: "")
+            disabledItem.state = boolToMenuState(v: !connectWifiOnWake)
+            subMenu.addItem(disabledItem)
+            
+            subMenu.addItem(NSMenuItem.separator())
+            
+            // 2. Configured network profiles
+            var foundActive = false
+            if let interface = CWWiFiClient.shared().interface(),
+               let configuration = interface.configuration() {
+                let profiles = configuration.networkProfiles
+                for profile in profiles {
+                    if let p = profile as? CWNetworkProfile, let ssid = p.ssid, !ssid.isEmpty {
+                        let item = NSMenuItem(title: ssid, action: #selector(wifiNetworkSelected(_:)), keyEquivalent: "")
+                        item.representedObject = ssid
+                        
+                        let isSelected = connectWifiOnWake && (ssid == targetWifiSsid)
+                        item.state = boolToMenuState(v: isSelected)
+                        if isSelected {
+                            foundActive = true
+                        }
+                        subMenu.addItem(item)
+                    }
+                }
+            }
+            
+            subMenu.addItem(NSMenuItem.separator())
+            
+            // 3. Custom SSID item
+            let customTitle = targetWifiSsid.isEmpty ? "Custom SSID..." : "Custom SSID... (\(targetWifiSsid))"
+            let customItem = NSMenuItem(title: customTitle, action: #selector(setWifiSsidClicked(_:)), keyEquivalent: "")
+            customItem.state = boolToMenuState(v: connectWifiOnWake && !foundActive && !targetWifiSsid.isEmpty)
+            subMenu.addItem(customItem)
+        }
 
         // Launch at login
         launchAtLoginMenuItem.state = boolToMenuState(v: LaunchAtLogin.isEnabled)
@@ -184,12 +341,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @IBAction func websiteClicked(_ sender: NSMenuItem) {
-        NSWorkspace.shared.open(URL(string: "https://github.com/stefansundin/bluesnooze")!)
-    }
-
     @IBAction func quitClicked(_ sender: NSMenuItem) {
         NSApplication.shared.terminate(self)
+    }
+
+    private func updatePowerStates() {
+        guard !isPoweringDown else { return }
+        prevBluetoothState = IOBluetoothPreferenceGetControllerPowerState()
+        if let interface = CWWiFiClient.shared().interface() {
+            prevWifiState = interface.powerOn()
+        }
     }
 
     // Notification handlers
@@ -208,31 +369,181 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func onPowerDown(note: NSNotification) {
-        prevBluetoothState = IOBluetoothPreferenceGetControllerPowerState()
+        isPoweringDown = true
         if disableBluetoothOnPowerDown {
             setBluetooth(powerOn: false)
         }
-        prevWifiState = CWWiFiClient.shared().interface()!.powerOn()
         if disableWifiOnPowerDown {
             setWifi(powerOn: false)
         }
     }
 
-    func onScreenUnlock(note: Notification) {
+    @objc func onScreenUnlock(note: Notification) {
+        isPoweringDown = false
         if bluetoothActionOnScreenUnlock == "enable" || (bluetoothActionOnScreenUnlock == "restore" && prevBluetoothState != 0) {
             setBluetooth(powerOn: true)
+            if connectOnWake {
+                connectToSpecificDevice()
+            }
         }
         if wifiActionOnScreenUnlock == "enable" || (wifiActionOnScreenUnlock == "restore" && prevWifiState) {
             setWifi(powerOn: true)
+            if connectWifiOnWake {
+                connectToSpecificWifi()
+            }
         }
     }
 
     private func setBluetooth(powerOn: Bool) {
-        IOBluetoothPreferenceSetControllerPowerState(powerOn ? 1 : 0)
+        powerQueue.async {
+            IOBluetoothPreferenceSetControllerPowerState(powerOn ? 1 : 0)
+        }
     }
 
     private func setWifi(powerOn: Bool) {
-        try! CWWiFiClient.shared().interface()!.setPower(powerOn)
+        powerQueue.async {
+            guard let interface = CWWiFiClient.shared().interface() else {
+                print("[Bluesnooze] Failed to get Wi-Fi interface to set power.")
+                return
+            }
+            do {
+                try interface.setPower(powerOn)
+                print("[Bluesnooze] Wi-Fi power set to \(powerOn)")
+            } catch {
+                print("[Bluesnooze] Failed to set Wi-Fi power to \(powerOn): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @objc func wifiNetworkSelected(_ sender: NSMenuItem) {
+        if let ssid = sender.representedObject as? String {
+            targetWifiSsid = ssid
+            connectWifiOnWake = true
+        }
+    }
+
+    @objc func disableConnectWifiOnWake(_ sender: NSMenuItem) {
+        connectWifiOnWake = false
+    }
+
+    @objc func setWifiSsidClicked(_ sender: NSMenuItem) {
+        let alert = NSAlert()
+        alert.messageText = "Wi-Fi Network SSID"
+        alert.informativeText = "Enter the SSID of the Wi-Fi network you want to connect to on wake:"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        
+        let inputTextField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        inputTextField.placeholderString = "Network Name"
+        inputTextField.stringValue = targetWifiSsid
+        alert.accessoryView = inputTextField
+        
+        alert.window.initialFirstResponder = inputTextField
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            let ssid = inputTextField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            targetWifiSsid = ssid
+            if !ssid.isEmpty {
+                connectWifiOnWake = true
+            }
+        }
+    }
+
+    private func connectToSpecificWifi() {
+        let ssid = targetWifiSsid
+        guard !ssid.isEmpty else { return }
+        
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard self?.isPoweringDown == false else { return }
+            
+            guard let interface = CWWiFiClient.shared().interface() else {
+                print("[Bluesnooze] No Wi-Fi interface found.")
+                return
+            }
+            
+            if interface.ssid() == ssid {
+                print("[Bluesnooze] Wi-Fi network \(ssid) is already connected.")
+                return
+            }
+            
+            print("[Bluesnooze] Scanning for Wi-Fi SSID: \(ssid)...")
+            do {
+                let networks = try interface.scanForNetworks(withName: ssid)
+                guard let network = networks.first(where: { $0.ssid == ssid }) else {
+                    print("[Bluesnooze] Wi-Fi network \(ssid) not found in scan.")
+                    return
+                }
+                
+                print("[Bluesnooze] Attempting to connect to Wi-Fi SSID: \(ssid)...")
+                try interface.associate(to: network, password: nil)
+                print("[Bluesnooze] Successfully initiated association to \(ssid)")
+            } catch {
+                print("[Bluesnooze] Failed to connect to Wi-Fi \(ssid), error: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @objc func pairedDeviceSelected(_ sender: NSMenuItem) {
+        if let mac = sender.representedObject as? String {
+            targetBluetoothMacAddress = mac
+            connectOnWake = true
+        }
+    }
+
+    @objc func disableConnectOnWake(_ sender: NSMenuItem) {
+        connectOnWake = false
+    }
+
+    @objc func setMacAddressClicked(_ sender: NSMenuItem) {
+        let alert = NSAlert()
+        alert.messageText = "Bluetooth Device MAC Address"
+        alert.informativeText = "Enter the MAC address of the Bluetooth device you want to connect to on wake (e.g. 00-11-22-33-44-55 or 00:11:22:33:44:55):"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        
+        let inputTextField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        inputTextField.placeholderString = "XX:XX:XX:XX:XX:XX"
+        inputTextField.stringValue = targetBluetoothMacAddress
+        alert.accessoryView = inputTextField
+        
+        alert.window.initialFirstResponder = inputTextField
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            let mac = inputTextField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            targetBluetoothMacAddress = mac
+            if !mac.isEmpty {
+                connectOnWake = true
+            }
+        }
+    }
+
+    private func connectToSpecificDevice() {
+        let macAddress = targetBluetoothMacAddress
+        guard !macAddress.isEmpty else { return }
+        
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard self?.isPoweringDown == false else { return }
+            
+            guard let device = IOBluetoothDevice(addressString: macAddress) else {
+                print("[Bluesnooze] Failed to initialize IOBluetoothDevice with address: \(macAddress)")
+                return
+            }
+            
+            if device.isConnected() {
+                print("[Bluesnooze] Device \(macAddress) is already connected.")
+                return
+            }
+            
+            print("[Bluesnooze] Attempting to connect to \(macAddress)...")
+            let result = device.openConnection()
+            if result == kIOReturnSuccess {
+                print("[Bluesnooze] Successfully connected to \(macAddress)")
+            } else {
+                print("[Bluesnooze] Failed to connect to \(macAddress), error code: \(result)")
+            }
+        }
     }
 
     // UI state
