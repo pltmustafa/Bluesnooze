@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21507" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+    <dependencies>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21507"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
+            <connections>
+                <outlet property="delegate" destination="Voe-Tx-rLC" id="GzC-gU-4Uq"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="Bluesnooze" customModuleProvider="target">
+            <connections>
+                <outlet property="bluetoothActionOnScreenUnlockEnable" destination="k9U-YJ-Qra" id="iPK-GH-kd9"/>
+                <outlet property="bluetoothActionOnScreenUnlockNothing" destination="wwz-8o-dOW" id="kwY-c8-qPz"/>
+                <outlet property="bluetoothActionOnScreenUnlockRestore" destination="mBz-mB-SAw" id="dpV-qb-pVO"/>
+                <outlet property="disableBluetoothOnPowerDownMenuItem" destination="odn-aC-gVj" id="jsd-Lq-Mt0"/>
+                <outlet property="disableWifiOnPowerDownMenuItem" destination="Yfg-ir-eaf" id="CBH-RF-2zM"/>
+                <outlet property="hideIconMenuItem" destination="iTh-xc-apd" id="koh-Zf-4sN"/>
+                <outlet property="launchAtLoginMenuItem" destination="I9E-pI-lLm" id="DFX-bS-N3m"/>
+                <outlet property="statusMenu" destination="AEO-aA-1fp" id="ueI-UR-7ba"/>
+                <outlet property="wifiActionOnScreenUnlockEnable" destination="hQ1-fS-R7M" id="Ia9-cl-mrb"/>
+                <outlet property="wifiActionOnScreenUnlockNothing" destination="Xld-ce-WJb" id="0C7-Am-NVB"/>
+                <outlet property="wifiActionOnScreenUnlockRestore" destination="1rl-rg-UXC" id="Bpd-2c-8xF"/>
+            </connections>
+        </customObject>
+        <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
+        <menu id="AEO-aA-1fp">
+            <items>
+                <menuItem title="Bluetooth" id="MrC-mk-c9a">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <menu key="submenu" title="Bluetooth" autoenablesItems="NO" id="6db-i4-kn8">
+                        <items>
+                            <menuItem title="Action when sleeping" enabled="NO" id="eEB-7E-yZ7">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                            </menuItem>
+                            <menuItem title="Turn off Bluetooth" indentationLevel="1" id="odn-aC-gVj">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="disableBluetoothOnPowerDownClicked:" target="Voe-Tx-rLC" id="wiF-Q6-7Fz"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem isSeparatorItem="YES" id="yrg-LP-7oM"/>
+                            <menuItem title="Action when unlocked" enabled="NO" id="OUZ-ST-m1w">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                            </menuItem>
+                            <menuItem title="Restore previous state" indentationLevel="1" id="mBz-mB-SAw">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="bluetoothActionOnScreenUnlockRestoreClicked:" target="Voe-Tx-rLC" id="eue-OR-a53"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Always enable" indentationLevel="1" id="k9U-YJ-Qra">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="bluetoothActionOnScreenUnlockEnableClicked:" target="Voe-Tx-rLC" id="CZN-qU-PVs"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Do nothing" indentationLevel="1" id="wwz-8o-dOW">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="bluetoothActionOnScreenUnlockNothingClicked:" target="Voe-Tx-rLC" id="Gg5-n6-rUW"/>
+                                </connections>
+                            </menuItem>
+                        </items>
+                    </menu>
+                </menuItem>
+                <menuItem title="Wi-Fi" id="2YU-sM-hjy">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <menu key="submenu" title="Wi-Fi" autoenablesItems="NO" id="FLk-RB-qqS">
+                        <items>
+                            <menuItem title="Action when sleeping" enabled="NO" id="h72-KL-UG8">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                            </menuItem>
+                            <menuItem title="Turn off Wi-Fi" indentationLevel="1" id="Yfg-ir-eaf">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="disableWifiOnPowerDownClicked:" target="Voe-Tx-rLC" id="7gH-3d-PVL"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem isSeparatorItem="YES" id="dSG-j1-2Iy"/>
+                            <menuItem title="Action when unlocked" enabled="NO" id="I3h-jC-DnK">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                            </menuItem>
+                            <menuItem title="Restore previous state" indentationLevel="1" id="1rl-rg-UXC">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="wifiActionOnScreenUnlockRestoreClicked:" target="Voe-Tx-rLC" id="EeB-cm-Qfu"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Always enable" indentationLevel="1" id="hQ1-fS-R7M">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="wifiActionOnScreenUnlockEnableClicked:" target="Voe-Tx-rLC" id="D98-uF-FDB"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Do nothing" indentationLevel="1" id="Xld-ce-WJb">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="wifiActionOnScreenUnlockNothingClicked:" target="Voe-Tx-rLC" id="4gn-DR-DLn"/>
+                                </connections>
+                            </menuItem>
+                        </items>
+                    </menu>
+                </menuItem>
+                <menuItem title="Launch at login" id="I9E-pI-lLm">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="launchAtLoginClicked:" target="Voe-Tx-rLC" id="ooK-DW-6Kn"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Hide icon" toolTip="Relaunch app to show icon" id="iTh-xc-apd">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="hideIconClicked:" target="Voe-Tx-rLC" id="rZI-1a-Hhe"/>
+                    </connections>
+                </menuItem>
+
+                <menuItem isSeparatorItem="YES" id="lFK-Uh-kIG"/>
+                <menuItem title="Quit" keyEquivalent="q" id="0IH-xa-Tvk">
+                    <connections>
+                        <action selector="quitClicked:" target="Voe-Tx-rLC" id="nzv-74-hhE"/>
+                    </connections>
+                </menuItem>
+            </items>
+            <point key="canvasLocation" x="-64.5" y="56.5"/>
+        </menu>
+    </objects>
+</document>
