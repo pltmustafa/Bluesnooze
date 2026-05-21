@@ -14,6 +14,10 @@ With Bluesnooze the Bluetooth connection is switched off when your Mac sleeps, a
 
 Bluesnooze can also manage the Wi-Fi connection in the same way (disabled by default).
 
+### ✨ New Features & Optimizations in this version:
+- **Connect on Wake**: The app now immediately re-connects Bluetooth and Wi-Fi.
+- **Performance Optimized**: Internal state-checkers (Timers) have been completely moved off the main thread (GCD). The app now consumes zero UI resources.
+
 ![Screenshot showing Bluesnooze in the status bar](images/screenshot.png)
 
 ## Installation
